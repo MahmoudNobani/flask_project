@@ -13,35 +13,109 @@ components:
 
   schemas:
 
-    User:
+    Employee:
       type: "object"
       properties:
         first_name:
           type: "string"
         age:
           type: "integer"
-        id:
+        emp_id:
           type: "integer"
           uniqueItems: true
         gender:
           type: "string"
         last_name:
           type: "string"
-        phone_numbers:
+        position:
+          type: "string"
+        manager:
+          type: "integer"
+        salary:
+          type: "number"
+        PhoneNumbers:
           type: array
           items:
               $ref: "#/components/schemas/phone"
         address:
           $ref: "#/components/schemas/address"
       required:
-        - id
+        - emp_id
         - first_name
         - age
         - gender
         - last_name
+        - salary
+        - manager
+        - position
         - address
-        - phone_numbers
+        - PhoneNumbers
 
+    OrderToMeal:
+      type: "object"
+      properties:
+        Meals:
+          type: array
+          items:
+            type: "integer"
+        Order:
+          $ref: "#/components/schemas/Order"
+      required:
+        - Order
+        - Meals
+
+    Order:
+      type: "object"
+      properties:
+        payment:
+          type: "string"
+        emp_id:
+          type: "integer"
+        delivery:
+          type: "integer"
+      required:
+        - payment
+        - emp_id
+        - delivery
+
+    Meal:
+      type: "object"
+      properties:
+        meal_id:
+          type: "integer"
+          uniqueItems: true
+        price:
+          type: "number"
+        name:
+          type: "string"
+        remaining:
+          type: "integer"
+        sales:
+          type: "integer"
+      required:
+        - meal_id
+        - price
+        - name
+        - remaining
+        - sales
+
+    Delivery:
+      type: "object"
+      properties:
+        del_id:
+          type: "integer"
+          uniqueItems: true
+        address:
+          type: "string"
+        name:
+          type: "string"
+        order_id:
+          type: "integer"
+      required:
+        - del_id
+        - address
+        - name
+        - order_id
 
     address:
       type: "object"
@@ -83,20 +157,28 @@ components:
 
 
   parameters:
-    id_:
-      name: "user_id"
-      description: "id of the user"
+    emp_id:
+      name: "emp_id"
+      description: "id of the emp"
+      in: path
+      required: True
+      schema:
+        type: "string"
+
+    meal_id:
+      name: "meal_id"
+      description: "id of the meal"
       in: path
       required: True
       schema:
         type: "string"
 
 paths:
-  /users:
+  /Employee:
     get:
       operationId: "methods.get_all_users"
       tags:
-        - "Users"
+        - "Employee"
       summary: "list all the Users"
       responses:
         "200":
@@ -107,12 +189,10 @@ paths:
                 type: string
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-      security:
-        - jwt: [ 'secret' ]
     post:
       operationId: "methods.add_user"
       tags:
-        - "Users"
+        - "Employee"
       summary: "add a User"
       requestBody:
         description: "user info"
@@ -120,7 +200,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/User"
+              $ref: "#/components/schemas/Employee"
       responses:
         "201":
           description: "Successfully created person"
@@ -128,16 +208,14 @@ paths:
           description: "sql failure, unique constraint, etc"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-      security:
-        - jwt: [ 'secret' ]
-  /users/{user_id}:
+  /Employee/{emp_id}:
     get:
       operationId: "methods.get_user_with_id"
       tags:
-        - Users
+        - "Employee"
       summary: "get the user with the entered id"
       parameters:
-        - $ref: "#/components/parameters/id_"
+        - $ref: "#/components/parameters/emp_id"
       responses:
         "200":
           description: "Successfully found the user"
@@ -147,15 +225,14 @@ paths:
           description: "bad request"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-      security:
-        - jwt: [ 'secret' ]
+
     delete:
       operationId: "methods.del_user"
       tags:
-        - Users
-      summary: "delete the user with the entered id"
+        - "Employee"
+      summary: "delete the employee with the entered id"
       parameters:
-        - $ref: "#/components/parameters/id_"
+        - $ref: "#/components/parameters/emp_id"
       responses:
         "202":
           description: "Successfully deleted"
@@ -165,22 +242,21 @@ paths:
           description: "bad request"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-      security:
-        - jwt: [ 'secret' ]
+
     put:
       operationId: "methods.update_user"
       tags:
-        - Users
+        - "Employee"
       summary: "update the user with the entered id"
       parameters:
-        - $ref: "#/components/parameters/id_"
+        - $ref: "#/components/parameters/emp_id"
       requestBody:
         description: "new user info"
         required: True
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/User"
+              $ref: "#/components/schemas/Employee"
       responses:
         "201":
           description: "Successfully updated"
@@ -188,19 +264,85 @@ paths:
           description: "user not found"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-      security:
-        - jwt: [ 'secret' ]
-  /auth/{user_id}:
-    get:
-      summary: Return JWT token
-      operationId: methods.generate_token
-      parameters:
-        - $ref: "#/components/parameters/id_"
+
+  /Meal:
+    post:
+      operationId: "methods.add_meal"
+      tags:
+        - "Meal"
+      summary: "add a new meal"
+      requestBody:
+        description: "new meal info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Meal"
       responses:
-        '200':
-          description: JWT token
+        "201":
+          description: "Successfully added a new meal"
+        "400":
+          description: "sql failure, unique constraint, etc"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+    get:
+      operationId: "methods.get_all_meals"
+      tags:
+        - "Meal"
+      summary: "list all the Meals"
+      responses:
+        "200":
+          description: "Successfully listed the Meals"
           content:
             'text/plain':
               schema:
                 type: string
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /Meal/{meal_id}:
+    put:
+      operationId: "methods.update_meal"
+      tags:
+        - "Meal"
+      summary: "update the Meal with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/meal_id"
+      requestBody:
+        description: "new meal info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Meal"
+      responses:
+        "201":
+          description: "Successfully updated"
+        "404":
+          description: "meal not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /OrderAMeal:
+    post:
+      operationId: "methods.add_order"
+      tags:
+        - "OrderToMeal"
+      summary: "add a new order"
+      requestBody:
+        description: "new order info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderToMeal"
+      responses:
+        "201":
+          description: "Successfully added a new order"
+        "400":
+          description: "sql failure, unique constraint, etc"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
 
