@@ -1,0 +1,206 @@
+# swagger.yml
+
+openapi: 3.0.0
+info:
+  title: "RP Flask REST API"
+  description: "An API about people and notes"
+  version: "1.0.0"
+
+servers:
+  - url: "/"
+
+components:
+
+  schemas:
+
+    User:
+      type: "object"
+      properties:
+        first_name:
+          type: "string"
+        age:
+          type: "integer"
+        id:
+          type: "integer"
+          uniqueItems: true
+        gender:
+          type: "string"
+        last_name:
+          type: "string"
+        phone_numbers:
+          type: array
+          items:
+              $ref: "#/components/schemas/phone"
+        address:
+          $ref: "#/components/schemas/address"
+      required:
+        - id
+        - first_name
+        - age
+        - gender
+        - last_name
+        - address
+        - phone_numbers
+
+
+    address:
+      type: "object"
+      properties:
+        street_address:
+          type: "string"
+        city:
+          type: "string"
+        state:
+          type: "string"
+        postal_code:
+          type: "string"
+      required:
+        - street_address
+        - city
+        - state
+        - postal_code
+    phone:
+      type: "object"
+      properties:
+        type:
+          type: "string"
+        number:
+          type: "string"
+      required:
+        - type
+        - number
+
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      x-bearerInfoFunc: methods.decode_token
+
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+
+
+  parameters:
+    id_:
+      name: "user_id"
+      description: "id of the user"
+      in: path
+      required: True
+      schema:
+        type: "string"
+
+paths:
+  /users:
+    get:
+      operationId: "methods.get_all_users"
+      tags:
+        - "Users"
+      summary: "list all the Users"
+      responses:
+        "200":
+          description: "Successfully listed the users"
+          content:
+            'text/plain':
+              schema:
+                type: string
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+    post:
+      operationId: "methods.add_user"
+      tags:
+        - "Users"
+      summary: "add a User"
+      requestBody:
+        description: "user info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: "Successfully created person"
+        "400":
+          description: "sql failure, unique constraint, etc"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+  /users/{user_id}:
+    get:
+      operationId: "methods.get_user_with_id"
+      tags:
+        - Users
+      summary: "get the user with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/id_"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "400":
+          description: "bad request"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+    delete:
+      operationId: "methods.del_user"
+      tags:
+        - Users
+      summary: "delete the user with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/id_"
+      responses:
+        "202":
+          description: "Successfully deleted"
+        "404":
+          description: "not found"
+        "400":
+          description: "bad request"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+    put:
+      operationId: "methods.update_user"
+      tags:
+        - Users
+      summary: "update the user with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/id_"
+      requestBody:
+        description: "new user info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: "Successfully updated"
+        "404":
+          description: "user not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+  /auth/{user_id}:
+    get:
+      summary: Return JWT token
+      operationId: methods.generate_token
+      parameters:
+        - $ref: "#/components/parameters/id_"
+      responses:
+        '200':
+          description: JWT token
+          content:
+            'text/plain':
+              schema:
+                type: string
+
