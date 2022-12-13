@@ -14,13 +14,12 @@ class Delivery(db.Model):
                 """
 
     __tablename__ = "Delivery"
-    del_id = db.Column(db.Integer, primary_key=True)
+    del_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     address = db.Column(db.String(100))
     name = db.Column(db.String(100))
     order_id = db.Column(db.Integer, ForeignKey("Order.order_id", ondelete='CASCADE'), nullable=False)
 
     def __init__(self, **kwargs):
-        self.del_id = kwargs["del_id"]
         self.address = kwargs["address"]
         self.name = kwargs["name"]
         self.order_id = kwargs["order_id"]

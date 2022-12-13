@@ -1,21 +1,28 @@
 import json
 
 from flask import request, jsonify
+import time
 
-from conf import db
+from jose import JWTError
+import jwt
+from flask import jsonify, request
+from werkzeug.exceptions import Unauthorized
+
+from conf import db, JWT_ISSUER, JWT_LIFETIME_SECONDS, JWT_SECRET, JWT_ALGORITHM
 from models.Address import Address
+from models.Delivery import Delivery
 from models.Employee import Employee
 from models.Meal import Meal
 from models.Order import Order
 from models.OrderToMeal import OrderToMeal
 from models.PhoneNumbers import PhoneNumbers
-from schema import EmpSchema, MealSchema
+from schema import EmpSchema, MealSchema, OrderSchema, OrderToMealSchema
 
 
-def add_user_gen(data: json) -> str:
-    """ the function aims to add a new user to the database
+def add_emp_gen(data: json) -> str:
+    """ the function aims to add a new emp to the database
         Args:
-            data (json): json representation fo the new user we want to add
+            data (json): json representation fo the new emp we want to add
         Returns:
             The return value is a string that either represent the success or failure of the addition process
     """
@@ -48,8 +55,8 @@ def add_user_gen(data: json) -> str:
         return "unique constrains in user id and phone failed to be applied, " + f"Unexpected {err=}, {type(err)=}"
 
 
-def get_all_users() -> json:
-    """this function perform a get method with the aim to return all the users
+def get_all_emp() -> json:
+    """this function perform a get method with the aim to return all the emp
 
         Args:
             there is no parameters
@@ -61,35 +68,34 @@ def get_all_users() -> json:
 
     people = Employee.query.all()
     schema = EmpSchema(many=True)
-    print("x")
     return jsonify(schema.dump(people)), 200
 
 
-def add_user() -> json:
-    """this function adds a new user to teh database with the help of add_user_gen
+def add_emp() -> json:
+    """this function adds a new emp to the database with the help of add_user_gen
         Args:
             this function doesn't take any parameters
 
         Returns:
-            returns the new user data as a json on success with 201 status code or
+            returns the new emp data as a json on success with 201 status code or
             an error message as a json representing what went wrong with 400 status code
 
         """
-    new_user = request.json
-    validation = add_user_gen(new_user)
+    new_emp = request.json
+    validation = add_emp_gen(new_emp)
     print(validation)
     if validation[:6] == "unique":
         return jsonify(validation), 400
-    new_user_data = Employee.query.filter(int(validation) == Employee.emp_id)
+    new_emp_data = Employee.query.filter(int(validation) == Employee.emp_id)
     schema = EmpSchema(many=True)
-    return jsonify(schema.dump(new_user_data)), 201
+    return jsonify(schema.dump(new_emp_data)), 201
 
 
-def del_user(emp_id: str) -> json:
+def del_emp(emp_id: str) -> json:
     """given the id, this function perform the delete operation on it
 
         Args:
-             user_id (string): represents the id of the user we want to delete
+             emp_id (string): represents the id of the user we want to delete
         Returns:
             a json that represents whether the operation was successful or not
             or an error message representing what went wrong
@@ -109,14 +115,14 @@ def del_user(emp_id: str) -> json:
         return jsonify("entered id has to be integer, " + f"Unexpected {err=}, {type(err)=}"), 400
 
 
-def get_user_with_id(emp_id: str) -> json:
-    """this function Return the user with the given id_.
+def get_emp_with_id(emp_id: str) -> json:
+    """this function Return the emp with the given id_.
 
         Args:
-            user_id (string): represents the id_ of the user we want to search
+            emp_id (string): represents the id_ of the emp we want to search
 
         Returns:
-            this function returns the data of the user with the given id_ as a json wih 200 status code
+            this function returns the data of the emp with the given id_ as a json wih 200 status code
             or an error message
 
         """
@@ -130,12 +136,12 @@ def get_user_with_id(emp_id: str) -> json:
         return jsonify("entered id has to be integer, " + f"Unexpected {err=}, {type(err)=}"), 400
 
 
-def update_user(emp_id: str) -> json:
+def update_emp(emp_id: str) -> json:
     """given the id, this function perform the update operation on it with the help of
-    update_user_gen function
+    update_emp_gen function
 
         Args:
-             emp_id (string): represents the id of the user we want to update
+             emp_id (string): represents the id of the emp we want to update
         Returns:
             json message that represents whether the operation was successful or not
 
@@ -147,15 +153,15 @@ def update_user(emp_id: str) -> json:
     except Exception as err:
         return jsonify(f"Unexpected {err=}, {type(err)=}"), 404
 
-    update_user_gen(user, updated_user)
+    update_emp_gen(user, updated_user)
     db.session.commit()
     return jsonify("update successful"), 201
 
 
-def update_user_gen(user: object, updated_user: json) -> json:
-    """ the function aims to update the user object
+def update_emp_gen(user: object, updated_user: json) -> json:
+    """ the function aims to update the emp object
             Args:
-                user (object): represents the user we want to update
+                user (object): represents the emp we want to update
                 updated_user (json): json representation of the updated information
             Returns:
                     there is no return value
@@ -185,6 +191,12 @@ def update_user_gen(user: object, updated_user: json) -> json:
 
 
 def add_meal() -> json:
+    """ the function add a new meal for the menu
+                Args:
+                    there is no arguments
+                Returns:
+                        there is no return value
+            """
     new_meal = request.json
     meal_object = Meal(**new_meal)
     meal_id = new_meal["meal_id"]
@@ -196,34 +208,34 @@ def add_meal() -> json:
         schema = MealSchema(many=True)
         return jsonify(schema.dump(new_meal_data)), 201
     except Exception as err:
-        return "unique constrains in user id and phone failed to be applied, " + f"Unexpected {err=}, {type(err)=}"
+        return "unique constrains in meal id failed to be applied, " + f"Unexpected {err=}, {type(err)=}", 400
 
 
 def get_all_meals() -> json:
-    """this function perform a get method with the aim to return all the users
+    """this function perform a get method with the aim to return all the meals
 
         Args:
             there is no parameters
 
         Returns:
-            returns a json that contains all the users we have, with 200 status code
+            returns a json that contains all the meals we have available, with 200 status code
 
         """
 
+    # meals = Meal.query.filter(Meal.remaining > 0).all()
     meals = Meal.query.all()
     schema = MealSchema(many=True)
-    print("x")
     return jsonify(schema.dump(meals)), 200
 
 
 def update_meal(meal_id: str) -> json:
-    """given the id, this function perform the update operation on it with the help of
-    update_user_gen function
+    """given the id, this function perform the update operation on a meal
 
         Args:
              meal_id (string): represents the id of the meal we want to update
         Returns:
-            json message that represents whether the operation was successful or not
+            json message that represents whether the operation was successful or not with 201 status code
+            404 status code is returned if a meal doesn't exist
 
         """
     updated_meal = request.json
@@ -239,38 +251,327 @@ def update_meal(meal_id: str) -> json:
 
 
 def add_order() -> json:
+    """this function adds a new order
+            Args:
+                this function doesn't take any parameters
+
+            Returns:
+                returns the new order number and price as a json on success with 201 status code or
+                an error message as a json representing what went wrong with 400 status code or
+                404 status code if the emp or a meal doesn't exist
+
+            """
+
+    # read the new order data
     new_order = request.json
 
     order_info = {}
     meals_id = {}
     total_price = 0
 
+    # separate meals and order info
     for i in new_order:
         if i == "Meals":
             meals_id[i] = new_order[i]
         else:
             order_info[i] = new_order[i]
 
-    for i in meals_id["Meals"]:
-        meals = db.session.execute(db.select(Meal).filter(Meal.meal_id == i)).one()
-        if meals[0].remaining == 0:
-            return jsonify("there is no ", meals[0].name, "please order something else"), 404
+    # check if the entered user id exists.
+    people = Employee.query.filter(int(order_info['Order']["emp_id"]) == Employee.emp_id)
+    schema = EmpSchema(many=True)
+    if not schema.dump(people):
+        return jsonify("user was not found"), 404
+
+    try:
+        # update the sales and remaining parameters in meals and calculate the price
+        for i in meals_id["Meals"]:
+            meals = db.session.execute(db.select(Meal).filter(Meal.meal_id == i)).one()
+            if meals[0].remaining == 0:
+                return jsonify("there is no ", meals[0].name, "please order something else"), 404
+            else:
+                meals[0].update_sales(meals[0].sales + 1, meals[0].remaining - 1)
+            total_price += meals[0].price
+        # print(total_price)
+
+        # add to order
+        order_info['Order']["price"] = total_price
+        # print(order_info['Order'])
+        order_object = Order(**order_info['Order'])
+        db.session.add(order_object)
+        db.session.commit()
+
+        # add to OrderToMeal table
+        print(order_object.order_id)
+        for i in meals_id["Meals"]:
+            temp = OrderToMeal(order_object.order_id, i)
+            db.session.add(temp)
+
+        db.session.commit()
+
+        return jsonify("order ", order_object.order_id, " was added, total price: ", total_price), 201
+    except Exception as err:
+        return "unique constrains in meal id failed to be applied, " + f"Unexpected {err=}, {type(err)=}", 400
+
+
+def update_order(order_id: str) -> json:
+    """given the id, this function perform the update operation on an order
+
+            Args:
+                 order_id (string): represents the id of the order we want to update
+            Returns:
+                json message that represents whether the operation was successful or not with 201 status code
+            404 status code is returned if a meal/order doesn't exist
+        """
+    new_order = request.json
+
+    order_info = {}
+    meals_id = {}
+    total_price = 0
+
+    # separate meals from order
+    for i in new_order:
+        if i == "Meals":
+            meals_id[i] = new_order[i]
         else:
-            meals[0].update_sales(meals[0].sales + 1, meals[0].remaining - 1)
-        total_price += meals[0].price
-    print(total_price)
+            order_info[i] = new_order[i]
 
-    order_info['Order']["price"] = total_price
-    print(order_info['Order'])
-    order_object = Order(**order_info['Order'])
-    db.session.add(order_object)
+    # get all old meals and old orders
+    old_meals = []
+    old_orders = db.session.execute(db.select(OrderToMeal).filter(OrderToMeal.order_id == int(order_id)))
+    schema = OrderToMealSchema(many=True)
+    if not schema.dump(old_orders):
+        return jsonify("order was not found"), 404
+
+    for i in old_orders:
+        old_meals.append(i[0].meal_id)
+
+    try:
+        # update sales and remaining for old and new meals ordered
+        for i in old_meals:
+            meals = db.session.execute(db.select(Meal).filter(Meal.meal_id == i)).one()
+            meals[0].update_sales(meals[0].sales - 1, meals[0].remaining + 1)
+
+        for i in meals_id["Meals"]:
+            meals = db.session.execute(db.select(Meal).filter(Meal.meal_id == i)).one()
+            if meals[0].remaining == 0:
+                return jsonify("there is no ", meals[0].name, "please order something else"), 404
+            else:
+                meals[0].update_sales(meals[0].sales + 1, meals[0].remaining - 1)
+            total_price += meals[0].price
+
+        # delete the orders in OrderToMeal table
+        OrderToMeal.query.filter(OrderToMeal.order_id == int(order_id)).delete()
+
+        # get order table object and update
+        old_order_from_orderT = db.session.execute(db.select(Order).filter(Order.order_id == int(order_id))).one()
+        order_info['Order']["price"] = total_price
+        print(order_info["Order"])
+        old_order_from_orderT[0].update(**order_info["Order"])
+
+        # add new orders to OrderToMeal table
+        for i in meals_id["Meals"]:
+            temp = OrderToMeal(order_id, i)
+            db.session.add(temp)
+
+        check = Order.query.filter(int(order_id) == Order.order_id).with_entities(Order.delivery)
+        x = db.session.execute(check).first()
+        if int(x[0]) == 0:
+            rm_deli_request(int(order_id))
+
+        # commit everything
+        db.session.commit()
+
+        return jsonify("update done"), 201
+    except Exception as err:
+        return "meal not found, " + f"Unexpected {err=}, {type(err)=}", 404
+
+
+def get_all_orders() -> json:
+    """this function perform a get method with the aim to return all the orders
+
+            Args:
+                there is no parameters
+
+            Returns:
+                returns a json that contains all the orders made, with 200 status code
+
+            """
+    orders = Order.query.all()
+    schema = OrderSchema(many=True)
+    return jsonify(schema.dump(orders)), 200
+
+
+def order_handled_by_emp(emp_id: str) -> json:
+    """this function perform a get method with the aim to return all the orders handled by this employee
+
+                Args:
+                    there is no parameters
+
+                Returns:
+                    returns a json that contains all the orders handled, with 200 status code
+
+                """
+
+    people = Employee.query.filter(int(emp_id) == Employee.emp_id)
+    schema = EmpSchema(many=True)
+    if not schema.dump(people):
+        return jsonify("user was not found"), 404
+
+    # count = Order.query.filter(int(emp_id) == Order.emp_id).count()
+    orders = Order.query.filter(int(emp_id) == Order.emp_id)
+    schema = OrderSchema(many=True)
+    return jsonify(schema.dump(orders)), 200
+
+
+def add_deli() -> json:
+    """ the function add a new del infor
+                Args:
+                    there is no arguments
+                Returns:
+                     this function returns 404 status code if order doesn't exist
+                     400 is not supported
+                     and 201 if the operation is successful
+            """
+    del_info = request.json
+    order_id = del_info["order_id"]
+    check = Order.query.filter(int(order_id) == Order.order_id).with_entities(Order.delivery)
+    x = db.session.execute(check).first()
+    if x is None:
+        return jsonify("order doesnt exists"), 404
+    if int(x[0]) == 0:
+        return jsonify("this order doesnt support delivery, please update it"), 400
+    else:
+        if db.session.execute(db.select(Delivery).filter(int(order_id) == Delivery.order_id)).first() is None:
+            return jsonify(add_deli_gen(del_info)), 201
+        else:
+            rm_deli_request(int(order_id))
+            return jsonify(add_deli_gen(del_info)), 201
+
+
+def update_deli(order_id: str) -> json:
+    """ the function add a new del infor
+                Args:
+                    order_id(str): parameter that represents the order id
+                Returns:
+                     this function returns 404 status code if order doesn't exist
+                     400 is not supported
+                     and 201 if the operation is successful
+            """
+    del_info = request.json
+    del_info["order_id"] = int(order_id)
+    check = Order.query.filter(int(order_id) == Order.order_id).with_entities(Order.delivery)
+    x = db.session.execute(check).first()
+    if x is None:
+        return jsonify("order doesnt exists"), 404
+    if int(x[0]) == 0:
+        rm_deli_request(int(order_id))
+        db.session.commit()
+        return jsonify("this order doesnt support delivery, please update it"), 400
+    else:
+        if db.session.execute(db.select(Delivery).filter(int(order_id) == Delivery.order_id)).first() is None:
+            return jsonify(add_deli_gen(del_info)), 201
+        else:
+            rm_deli_request(int(order_id))
+            return jsonify(add_deli_gen(del_info)), 201
+
+
+def add_deli_gen(del_info: json) -> str:
+    """ the function add a new del info to the database directly
+                    Args:
+                        del_info(json): parameter that represents the delivery infor
+                    Returns:
+                         return and info msg
+                """
+    del_object = Delivery(**del_info)
+    db.session.add(del_object)
     db.session.commit()
+    return "delivery was added"
 
-    print(order_object.order_id)
-    for i in meals_id["Meals"]:
-        temp = OrderToMeal(order_object.order_id, i)
-        db.session.add(temp)
 
-    db.session.commit()
+def rm_deli_request(order_id: int):
+    """ the function remove a del info from the database directly
+                    Args:
+                        order_id(int): parameter that represents the order id
+                    Returns:
+                        no return value
+                """
+    Delivery.query.filter(order_id == Delivery.order_id).delete()
 
-    return jsonify("order ", order_object.order_id, " was added, total price: ", total_price), 201
+
+def generate_token(emp_id: int) -> str:
+    """ the function is used to create authentication token
+                Args:
+                    emp_id (int): represents the id of the user who wants the token
+                Returns:
+                        token (str)
+                            """
+
+    print(emp_id)
+    emp = db.session.execute(db.select(Employee).filter(Employee.emp_id == int(emp_id))).one()
+    if emp[0].manager == 1:
+        timestamp = _current_timestamp()
+        payload = {
+            "iss": JWT_ISSUER,
+            "iat": int(timestamp),
+            "exp": int(timestamp + JWT_LIFETIME_SECONDS),
+            "sub": str(emp_id),
+        }
+        return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM), 200
+    else:
+        return jsonify("not a manager, can produce a token"), 401
+
+
+def decode_token(token: str):
+    """ the function is used to decode authentication token
+                Args:
+                    token (str): represents the token
+                Returns:
+                    either a dictionary that represents the decoded token or an error exception
+                            """
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError as e:
+        raise Unauthorized from e
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+
+
+def _current_timestamp() -> int:
+    """ the function is used to get current timestamp
+            Args:
+                no arguments
+            Returns:
+                return the current time
+                        """
+    return int(time.time())
+
+
+def emp_names_sold_meals(meal_id: str) -> json:
+    """ the function is performs a query where it can get the name of each employee who sold the entered meal id
+                Args:
+                   meal_id(str) : represents the name of the meal we will use
+                Returns:
+                    returns the name of employees with a status code of 200
+                            """
+    answer = db.session.query(
+        Employee, Meal, Order, OrderToMeal
+    ).filter(
+        Employee.emp_id == Order.emp_id,
+    ).filter(
+        OrderToMeal.order_id == Order.order_id,
+    ).filter(
+        OrderToMeal.meal_id == Meal.meal_id,
+    ).filter(
+        Meal.meal_id == int(meal_id),
+    ).all()
+
+    emp_name = {}
+    for i in answer:
+        s = i[0].first_name + " " + i[0].last_name
+        if s in emp_name:
+            emp_name[s] += 1
+            continue
+        emp_name[s] = 1
+
+    #print(emp_name)
+    return jsonify(emp_name), 200

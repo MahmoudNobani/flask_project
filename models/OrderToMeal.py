@@ -23,3 +23,6 @@ class OrderToMeal(db.Model):
         self.order_id = order_id
         self.meal_id = meal_id
 
+    def printALL(self):
+        print("order id:",self.order_id," ,meal id:",self.meal_id)
+

@@ -29,22 +29,11 @@ class AddSchema(Schema):
     postal_code = fields.String()
 
 
-class OrderSchema(Schema):
-    """this class the schema for the Address table
-                        Attributes:
-                            order_id (primary key:int): represents the id of the unique Order
-                            price (string): represents the Order price
-                            payment (string): represents the Order payment method
-                            emp_id (int): represents the employee id
-                            the emp_id is the foreign key directly connected to Employee table
-                            delivery (string): represents the employee delivery
-                        """
+class OrderToMealSchema(Schema):
     order_id = fields.String()
-    price = fields.String()
-    payment = fields.String()
-    emp_id = fields.String()
-    delivery = fields.String()
-    #OrderToMeal = fields.Nested(AddSchema(only=("order_id","meal_id")), many=True)
+    meal_id = fields.String()
+    # Orders = fields.Nested(OrderSchemaOG(only=("emp_id", "delivery","payment")), many=True)
+    # Meals = fields.Nested(MealSchemaOG(only=("name", "price")), many=True)
 
 
 class MealSchema(Schema):
@@ -61,7 +50,25 @@ class MealSchema(Schema):
     remaining = fields.String()
     sales = fields.String()
     price = fields.String()
-    #OrderToMeal = fields.Nested(AddSchema(only=("order_id", "meal_id")), many=True)
+    # Orders = fields.Nested(OrderToMealSchema(only=("order_id", "meal_id")), many=True)
+
+
+class OrderSchema(Schema):
+    """this class the schema for the Address table
+                        Attributes:
+                            order_id (primary key:int): represents the id of the unique Order
+                            price (string): represents the Order price
+                            payment (string): represents the Order payment method
+                            emp_id (int): represents the employee id
+                            the emp_id is the foreign key directly connected to Employee table
+                            delivery (string): represents the employee delivery
+                        """
+    order_id = fields.String()
+    price = fields.String()
+    payment = fields.String()
+    emp_id = fields.String()
+    delivery = fields.String()
+    OrderToMeal = fields.Nested(OrderToMealSchema(only=("meal_id",)), many=True)
 
 
 class delSchema(Schema):
@@ -116,4 +123,4 @@ class EmpSchema(Schema):
     manager = fields.String()
     PhoneNumbers = fields.Nested(PhoneSchema(only=("type", "number")), many=True)
     address = fields.Nested(AddSchema(only=("street_address", "city", "state", "postal_code")), many=True)
-    #order = fields.Nested(AddSchema(only="order_id"), many=True)
+    # order = fields.Nested(AddSchema(only="order_id"), many=True)

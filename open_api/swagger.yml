@@ -102,9 +102,6 @@ components:
     Delivery:
       type: "object"
       properties:
-        del_id:
-          type: "integer"
-          uniqueItems: true
         address:
           type: "string"
         name:
@@ -112,7 +109,6 @@ components:
         order_id:
           type: "integer"
       required:
-        - del_id
         - address
         - name
         - order_id
@@ -165,6 +161,14 @@ components:
       schema:
         type: "string"
 
+    order_id:
+      name: "order_id"
+      description: "id of the order"
+      in: path
+      required: True
+      schema:
+        type: "string"
+
     meal_id:
       name: "meal_id"
       description: "id of the meal"
@@ -174,23 +178,41 @@ components:
         type: "string"
 
 paths:
-  /Employee:
+  /auth/{emp_id}:
     get:
-      operationId: "methods.get_all_users"
-      tags:
-        - "Employee"
-      summary: "list all the Users"
+      summary: Return JWT token
+      operationId: methods.generate_token
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
       responses:
-        "200":
-          description: "Successfully listed the users"
+        '200':
+          description: JWT token
           content:
             'text/plain':
               schema:
                 type: string
         "401":
           $ref: '#/components/responses/UnauthorizedError'
+
+  /Employee:
+    get:
+      operationId: "methods.get_all_emp"
+      tags:
+        - "Employee"
+      summary: "list all the emp"
+      responses:
+        "200":
+          description: "Successfully listed the emp"
+          content:
+            'text/plain':
+              schema:
+                type: string
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
     post:
-      operationId: "methods.add_user"
+      operationId: "methods.add_emp"
       tags:
         - "Employee"
       summary: "add a User"
@@ -208,9 +230,11 @@ paths:
           description: "sql failure, unique constraint, etc"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
   /Employee/{emp_id}:
     get:
-      operationId: "methods.get_user_with_id"
+      operationId: "methods.get_emp_with_id"
       tags:
         - "Employee"
       summary: "get the user with the entered id"
@@ -223,11 +247,8 @@ paths:
           description: "not found"
         "400":
           description: "bad request"
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
-
     delete:
-      operationId: "methods.del_user"
+      operationId: "methods.del_emp"
       tags:
         - "Employee"
       summary: "delete the employee with the entered id"
@@ -242,9 +263,10 @@ paths:
           description: "bad request"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-
+      security:
+        - jwt: [ 'secret' ]
     put:
-      operationId: "methods.update_user"
+      operationId: "methods.update_emp"
       tags:
         - "Employee"
       summary: "update the user with the entered id"
@@ -264,6 +286,8 @@ paths:
           description: "user not found"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
 
   /Meal:
     post:
@@ -283,8 +307,6 @@ paths:
           description: "Successfully added a new meal"
         "400":
           description: "sql failure, unique constraint, etc"
-        "401":
-          $ref: '#/components/responses/UnauthorizedError'
 
     get:
       operationId: "methods.get_all_meals"
@@ -320,15 +342,23 @@ paths:
         "201":
           description: "Successfully updated"
         "404":
-          description: "meal not found"
+          description: "meal/order not found"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
 
-  /OrderAMeal:
+  /Order:
+    get:
+      operationId: "methods.get_all_orders"
+      tags:
+        - "Orders"
+      summary: "get all orders"
+      responses:
+        "200":
+          description: "Successfully returned all orders"
     post:
       operationId: "methods.add_order"
       tags:
-        - "OrderToMeal"
+        - "Orders"
       summary: "add a new order"
       requestBody:
         description: "new order info"
@@ -345,4 +375,108 @@ paths:
         "401":
           $ref: '#/components/responses/UnauthorizedError'
 
+  /Order/{order_id}:
+    put:
+      operationId: "methods.update_order"
+      tags:
+        - "Orders"
+      summary: "update the order with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/order_id"
+      requestBody:
+        description: "new order info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderToMeal"
+      responses:
+        "201":
+          description: "Successfully updated"
+        "404":
+          description: "order not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+
+  /Manager/{emp_id}:
+    get:
+      operationId: "methods.order_handled_by_emp"
+      tags:
+        - "Manager"
+      summary: "get all orders handled by this user"
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+
+  /Manager/meals/{meal_id}:
+    get:
+      operationId: "methods.emp_names_sold_meals"
+      tags:
+        - "Manager"
+      summary: "get all emp who handled this meal"
+      parameters:
+        - $ref: "#/components/parameters/meal_id"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+
+
+  /Order/Delivery:
+    post:
+      operationId: "methods.add_deli"
+      tags:
+        - "Delivery"
+      summary: "add delivery info"
+      requestBody:
+        description: "delivery info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Delivery"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "400":
+          description: "order not found"
+
+    put:
+      operationId: "methods.update_deli"
+      tags:
+        - "Delivery"
+      summary: "update the Delivery with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/order_id"
+      requestBody:
+        description: "new delivery info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Delivery"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "400":
+          description: "order not found"
 

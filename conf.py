@@ -5,7 +5,7 @@ from flask_marshmallow import Marshmallow
 
 JWT_ISSUER = "com.zalando.connexion"
 JWT_SECRET = "random"
-JWT_LIFETIME_SECONDS = 60
+JWT_LIFETIME_SECONDS = 360
 JWT_ALGORITHM = "HS256"
 
 #config file used to specify the main configuration of the program

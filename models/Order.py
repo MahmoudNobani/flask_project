@@ -28,3 +28,16 @@ class Order(db.Model):
         self.emp_id = kwargs["emp_id"]
         self.delivery = kwargs["delivery"]
 
+    def update(self, **kwargs):
+        """this function aims to update the order object, thus the database
+                        Args:
+                            **kwargs: Arbitrary keyword arguments that represents the meal table main attribute,
+                            relation not included
+                        Returns:
+                            no return value,
+                                """
+        self.price = kwargs["price"]
+        self.payment = kwargs["payment"]
+        self.emp_id = kwargs["emp_id"]
+        self.delivery = kwargs["delivery"]
+
