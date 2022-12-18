@@ -342,6 +342,7 @@ def update_order(order_id: str) -> json:
     if not schema.dump(old_orders):
         return jsonify("order was not found"), 404
 
+    old_orders = db.session.execute(db.select(OrderToMeal).filter(OrderToMeal.order_id == int(order_id)))
     for i in old_orders:
         old_meals.append(i[0].meal_id)
 
@@ -384,6 +385,61 @@ def update_order(order_id: str) -> json:
         return jsonify("update done"), 201
     except Exception as err:
         return "meal not found, " + f"Unexpected {err=}, {type(err)=}", 404
+
+
+def delete_order(order_id: str) -> json:
+    """given the id, this function perform the delete operation on an order
+
+            Args:
+                 order_id (string): represents the id of the order we want to delete
+            Returns:
+                json message that represents whether the operation was successful or not with 201 status code
+            404 status code is returned if a meal/order doesn't exist
+        """
+
+    # get all old meals and old orders
+    old_meals = []
+    old_orders = db.session.execute(db.select(OrderToMeal).filter(OrderToMeal.order_id == int(order_id)))
+    print(old_orders)
+    schema = OrderToMealSchema(many=True)
+
+    #print(schema.dump(old_orders))
+
+    if not schema.dump(old_orders):
+        return jsonify("order was not found"), 404
+
+    old_orders = db.session.execute(db.select(OrderToMeal).filter(OrderToMeal.order_id == int(order_id)))
+    for i in old_orders:
+        print("i:",i)
+        print("i[0]:",i[0])
+        print(i[0].meal_id)
+        old_meals.append(i[0].meal_id)
+
+    #print(old_meals)
+
+    try:
+
+        # check delivery and delete
+        check = Order.query.filter(int(order_id) == Order.order_id).with_entities(Order.delivery)
+        x = db.session.execute(check).first()
+        if int(x[0]) == 1:
+            rm_deli_request(int(order_id))
+
+        # update sales and remaining for old and new meals ordered
+        for i in old_meals:
+            meals = db.session.execute(db.select(Meal).filter(Meal.meal_id == i)).one()
+            meals[0].update_sales(meals[0].sales - 1, meals[0].remaining + 1)
+
+        # delete the orders in OrderToMeal table
+        OrderToMeal.query.filter(OrderToMeal.order_id == int(order_id)).delete()
+        Order.query.filter(int(order_id) == Order.order_id).delete()
+
+        # commit everything
+        db.session.commit()
+
+        return jsonify("delete done"), 202
+    except Exception as err:
+        return f"Unexpected {err=}, {type(err)=}", 404
 
 
 def get_all_orders() -> json:
@@ -573,5 +629,37 @@ def emp_names_sold_meals(meal_id: str) -> json:
             continue
         emp_name[s] = 1
 
-    #print(emp_name)
+    # print(emp_name)
     return jsonify(emp_name), 200
+
+
+def meals_delivered() -> json:
+    """ the function is performs a query where it can get the name of each employee who sold the entered meal id
+                Args:
+                   meal_id(str) : represents the name of the meal we will use
+                Returns:
+                    returns the name of employees with a status code of 200
+                            """
+    answer = db.session.query(
+        Delivery, Meal, Order, OrderToMeal
+    ).filter(
+        Meal.meal_id == OrderToMeal.meal_id,
+    ).filter(
+        OrderToMeal.order_id == Order.order_id,
+    ).filter(
+        Order.order_id == Delivery.order_id
+    ).filter(
+        Order.delivery == 1,
+    ).all()
+
+    print(answer)
+
+    meals_name = {}
+    for i in answer:
+        s = i[1].name
+        if s in meals_name:
+            meals_name[s] += 1
+            continue
+        meals_name[s] = 1
+
+    return jsonify(meals_name), 200

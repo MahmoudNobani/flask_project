@@ -397,8 +397,19 @@ paths:
           description: "order not found"
         "401":
           $ref: '#/components/responses/UnauthorizedError'
-      security:
-        - jwt: [ 'secret' ]
+    delete:
+      operationId: "methods.delete_order"
+      tags:
+        - "Orders"
+      summary: "delete the order with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/order_id"
+      responses:
+        "202":
+          description: "Successfully deleted"
+        "404":
+          description: "not found"
+
 
   /Manager/{emp_id}:
     get:
@@ -435,6 +446,20 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
       security:
         - jwt: [ 'secret' ]
+
+  /Manager/meals/delivered:
+    get:
+      operationId: "methods.meals_delivered"
+      tags:
+        - "Manager"
+      summary: "get all meals that were delivered"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
 
 
   /Order/Delivery:

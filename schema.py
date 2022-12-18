@@ -94,6 +94,7 @@ class OrderToMealSchema(Schema):
                             meal_id (primary key:int): represents the id of the meal,
                             the meal_id is the foreign key directly connected to meal table
                         """
+    gen_id = fields.String()
     order_id = fields.String()
     meal_id = fields.String()
 
