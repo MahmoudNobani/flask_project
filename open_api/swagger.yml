@@ -1,0 +1,507 @@
+# swagger.yml
+
+openapi: 3.0.0
+info:
+  title: "RP Flask REST API"
+  description: "An API about people and notes"
+  version: "1.0.0"
+
+servers:
+  - url: "/"
+
+components:
+
+  schemas:
+
+    Employee:
+      type: "object"
+      properties:
+        first_name:
+          type: "string"
+        age:
+          type: "integer"
+        emp_id:
+          type: "integer"
+          uniqueItems: true
+        gender:
+          type: "string"
+        last_name:
+          type: "string"
+        position:
+          type: "string"
+        manager:
+          type: "integer"
+        salary:
+          type: "number"
+        PhoneNumbers:
+          type: array
+          items:
+              $ref: "#/components/schemas/phone"
+        address:
+          $ref: "#/components/schemas/address"
+      required:
+        - emp_id
+        - first_name
+        - age
+        - gender
+        - last_name
+        - salary
+        - manager
+        - position
+        - address
+        - PhoneNumbers
+
+    OrderToMeal:
+      type: "object"
+      properties:
+        Meals:
+          type: array
+          items:
+            type: "integer"
+        Order:
+          $ref: "#/components/schemas/Order"
+      required:
+        - Order
+        - Meals
+
+    Order:
+      type: "object"
+      properties:
+        payment:
+          type: "string"
+        emp_id:
+          type: "integer"
+        delivery:
+          type: "integer"
+      required:
+        - payment
+        - emp_id
+        - delivery
+
+    Meal:
+      type: "object"
+      properties:
+        meal_id:
+          type: "integer"
+          uniqueItems: true
+        price:
+          type: "number"
+        name:
+          type: "string"
+        remaining:
+          type: "integer"
+        sales:
+          type: "integer"
+      required:
+        - meal_id
+        - price
+        - name
+        - remaining
+        - sales
+
+    Delivery:
+      type: "object"
+      properties:
+        address:
+          type: "string"
+        name:
+          type: "string"
+        order_id:
+          type: "integer"
+      required:
+        - address
+        - name
+        - order_id
+
+    address:
+      type: "object"
+      properties:
+        street_address:
+          type: "string"
+        city:
+          type: "string"
+        state:
+          type: "string"
+        postal_code:
+          type: "string"
+      required:
+        - street_address
+        - city
+        - state
+        - postal_code
+    phone:
+      type: "object"
+      properties:
+        type:
+          type: "string"
+        number:
+          type: "string"
+      required:
+        - type
+        - number
+
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      x-bearerInfoFunc: methods.decode_token
+
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+
+
+  parameters:
+    emp_id:
+      name: "emp_id"
+      description: "id of the emp"
+      in: path
+      required: True
+      schema:
+        type: "string"
+
+    order_id:
+      name: "order_id"
+      description: "id of the order"
+      in: path
+      required: True
+      schema:
+        type: "string"
+
+    meal_id:
+      name: "meal_id"
+      description: "id of the meal"
+      in: path
+      required: True
+      schema:
+        type: "string"
+
+paths:
+  /auth/{emp_id}:
+    get:
+      summary: Return JWT token
+      operationId: methods.generate_token
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
+      responses:
+        '200':
+          description: JWT token
+          content:
+            'text/plain':
+              schema:
+                type: string
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /Employee:
+    get:
+      operationId: "methods.get_all_emp"
+      tags:
+        - "Employee"
+      summary: "list all the emp"
+      responses:
+        "200":
+          description: "Successfully listed the emp"
+          content:
+            'text/plain':
+              schema:
+                type: string
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+    post:
+      operationId: "methods.add_emp"
+      tags:
+        - "Employee"
+      summary: "add a User"
+      requestBody:
+        description: "user info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Employee"
+      responses:
+        "201":
+          description: "Successfully created person"
+        "400":
+          description: "sql failure, unique constraint, etc"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+  /Employee/{emp_id}:
+    get:
+      operationId: "methods.get_emp_with_id"
+      tags:
+        - "Employee"
+      summary: "get the user with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "400":
+          description: "bad request"
+    delete:
+      operationId: "methods.del_emp"
+      tags:
+        - "Employee"
+      summary: "delete the employee with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
+      responses:
+        "202":
+          description: "Successfully deleted"
+        "404":
+          description: "not found"
+        "400":
+          description: "bad request"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+    put:
+      operationId: "methods.update_emp"
+      tags:
+        - "Employee"
+      summary: "update the user with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
+      requestBody:
+        description: "new user info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Employee"
+      responses:
+        "201":
+          description: "Successfully updated"
+        "404":
+          description: "user not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+
+  /Meal:
+    post:
+      operationId: "methods.add_meal"
+      tags:
+        - "Meal"
+      summary: "add a new meal"
+      requestBody:
+        description: "new meal info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Meal"
+      responses:
+        "201":
+          description: "Successfully added a new meal"
+        "400":
+          description: "sql failure, unique constraint, etc"
+
+    get:
+      operationId: "methods.get_all_meals"
+      tags:
+        - "Meal"
+      summary: "list all the Meals"
+      responses:
+        "200":
+          description: "Successfully listed the Meals"
+          content:
+            'text/plain':
+              schema:
+                type: string
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /Meal/{meal_id}:
+    put:
+      operationId: "methods.update_meal"
+      tags:
+        - "Meal"
+      summary: "update the Meal with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/meal_id"
+      requestBody:
+        description: "new meal info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Meal"
+      responses:
+        "201":
+          description: "Successfully updated"
+        "404":
+          description: "meal/order not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /Order:
+    get:
+      operationId: "methods.get_all_orders"
+      tags:
+        - "Orders"
+      summary: "get all orders"
+      responses:
+        "200":
+          description: "Successfully returned all orders"
+    post:
+      operationId: "methods.add_order"
+      tags:
+        - "Orders"
+      summary: "add a new order"
+      requestBody:
+        description: "new order info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderToMeal"
+      responses:
+        "201":
+          description: "Successfully added a new order"
+        "400":
+          description: "sql failure, unique constraint, etc"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /Order/{order_id}:
+    put:
+      operationId: "methods.update_order"
+      tags:
+        - "Orders"
+      summary: "update the order with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/order_id"
+      requestBody:
+        description: "new order info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderToMeal"
+      responses:
+        "201":
+          description: "Successfully updated"
+        "404":
+          description: "order not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      operationId: "methods.delete_order"
+      tags:
+        - "Orders"
+      summary: "delete the order with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/order_id"
+      responses:
+        "202":
+          description: "Successfully deleted"
+        "404":
+          description: "not found"
+
+
+  /Manager/{emp_id}:
+    get:
+      operationId: "methods.order_handled_by_emp"
+      tags:
+        - "Manager"
+      summary: "get all orders handled by this user"
+      parameters:
+        - $ref: "#/components/parameters/emp_id"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+
+  /Manager/meals/{meal_id}:
+    get:
+      operationId: "methods.emp_names_sold_meals"
+      tags:
+        - "Manager"
+      summary: "get all emp who handled this meal"
+      parameters:
+        - $ref: "#/components/parameters/meal_id"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+      security:
+        - jwt: [ 'secret' ]
+
+  /Manager/meals/delivered:
+    get:
+      operationId: "methods.meals_delivered"
+      tags:
+        - "Manager"
+      summary: "get all meals that were delivered"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+
+
+  /Order/Delivery:
+    post:
+      operationId: "methods.add_deli"
+      tags:
+        - "Delivery"
+      summary: "add delivery info"
+      requestBody:
+        description: "delivery info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Delivery"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "400":
+          description: "order not found"
+
+    put:
+      operationId: "methods.update_deli"
+      tags:
+        - "Delivery"
+      summary: "update the Delivery with the entered id"
+      parameters:
+        - $ref: "#/components/parameters/order_id"
+      requestBody:
+        description: "new delivery info"
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Delivery"
+      responses:
+        "200":
+          description: "Successfully found the user"
+        "404":
+          description: "not found"
+        "400":
+          description: "order not found"
+
