@@ -276,6 +276,10 @@ def add_order() -> json:
         else:
             order_info[i] = new_order[i]
 
+    if not meals_id["Meals"]:
+        return "not meal was specified", 400
+
+
     # check if the entered user id exists.
     people = Employee.query.filter(int(order_info['Order']["emp_id"]) == Employee.emp_id)
     schema = EmpSchema(many=True)
