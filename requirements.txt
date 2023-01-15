@@ -1,0 +1,11 @@
+connexion~=connexion==2.6.0
+marshmallow~=3.19.0
+SQLAlchemy~=1.4.44
+flask-sqlalchemy
+connexion[swagger-ui]==2.14.1
+flask-marshmallow[sqlalchemy]==0.14.0
+swagger-ui
+PyJWT~=2.6.0
+python-jose[cryptography]
+Flask~=2.2.2
+Werkzeug~=2.2.2
